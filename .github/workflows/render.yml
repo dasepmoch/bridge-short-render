@@ -1,0 +1,67 @@
+name: Render bridge short (Bahasa Indonesia)
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  render:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    strategy:
+      fail-fast: false
+      matrix:
+        chunk:
+          - { a: 0, b: 168 }
+          - { a: 169, b: 337 }
+          - { a: 338, b: 506 }
+          - { a: 507, b: 675 }
+          - { a: 676, b: 844 }
+          - { a: 845, b: 1012 }
+          - { a: 1013, b: 1181 }
+          - { a: 1182, b: 1350 }
+          - { a: 1351, b: 1519 }
+          - { a: 1520, b: 1687 }
+          - { a: 1688, b: 1856 }
+          - { a: 1857, b: 2024 }
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+      - run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
+      - run: npx remotion browser ensure
+      - run: node scripts/render_ci.mjs frames ${{ matrix.chunk.a }} ${{ matrix.chunk.b }}
+      - uses: actions/upload-artifact@v4
+        with:
+          name: frames-${{ matrix.chunk.a }}
+          path: frames/*.jpeg
+          retention-days: 1
+  assemble:
+    needs: render
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install numpy scipy
+      - uses: actions/download-artifact@v4
+        with:
+          path: frames_in
+          pattern: frames-*
+          merge-multiple: true
+      - name: Generate Indonesian voice and soundtrack
+        run: |
+          cd bridge-short
+          python3 make_voice_id.py
+          cd audio
+          python3 mix.py
+      - name: Assemble video
+        run: python3 assemble.py
+      - name: Publish release with the video
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh release create "render-${{ github.run_number }}" bridge-short-bahasa.mp4 --title "Bridge Short (Bahasa Indonesia) — run ${{ github.run_number }}" --notes "Full 67.5s portrait short rendered with GitHub Actions (Remotion + three.js, cartoon-3d-short skill)."
