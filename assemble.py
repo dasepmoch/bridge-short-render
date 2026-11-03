@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import os, re, shutil, subprocess, sys
 SRC = "frames_in"; SEQ = "frames_seq"; TOTAL = 2025
+os.makedirs("out", exist_ok=True)
 frames = {}
 for f in os.listdir(SRC):
     m = re.fullmatch(r"element-(\d+)\.jpeg", f)
@@ -15,5 +16,5 @@ for i in range(TOTAL):
     if not os.path.exists(dst): shutil.copy(frames[i], dst)
 subprocess.run(["ffmpeg", "-y", "-v", "error", "-framerate", "30", "-i", os.path.join(SEQ, "f%04d.jpeg"),
   "-i", "bridge-short/audio/mix.wav", "-c:v", "libx264", "-preset", "medium", "-crf", "18",
-  "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", "bridge-short-bahasa.mp4"], check=True)
-print("assembled bridge-short-bahasa.mp4", os.path.getsize("bridge-short-bahasa.mp4"))
+  "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", "out/bridge-short-bahasa.mp4"], check=True)
+print("assembled out/bridge-short-bahasa.mp4", os.path.getsize("out/bridge-short-bahasa.mp4"))
