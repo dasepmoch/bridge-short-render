@@ -1,0 +1,37 @@
+name: What-if short (assemble only)
+on:
+  workflow_dispatch:
+permissions:
+  contents: write
+  actions: read
+jobs:
+  assemble:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download frames from run 7
+        uses: actions/download-artifact@v4
+        with:
+          pattern: frames-*
+          path: frames_in
+          merge-multiple: true
+          run-id: 41636449980
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build what-if video
+        run: |
+          sudo apt-get update -qq && sudo apt-get install -y -qq ffmpeg
+          pip install --quiet numpy scipy edge-tts
+          python3 bridge-short/make_voice_edge.py
+          python3 bridge-short/audio/mix.py
+          python3 assemble_whatif.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: whatif-video
+          path: out/whatif-serempak.mp4
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: whatif-1
+          files: |
+            out/whatif-serempak.mp4
+            bridge-short/subs_whatif.srt
