@@ -3,65 +3,97 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
-permissions:
-  contents: write
 jobs:
   render:
     runs-on: ubuntu-latest
-    timeout-minutes: 180
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        chunk:
-          - { a: 0, b: 168 }
-          - { a: 169, b: 337 }
-          - { a: 338, b: 506 }
-          - { a: 507, b: 675 }
-          - { a: 676, b: 844 }
-          - { a: 845, b: 1012 }
-          - { a: 1013, b: 1181 }
-          - { a: 1182, b: 1350 }
-          - { a: 1351, b: 1519 }
-          - { a: 1520, b: 1687 }
-          - { a: 1688, b: 1856 }
-          - { a: 1857, b: 2024 }
+        include:
+          - { a: 0, b: 139 }
+          - { a: 140, b: 279 }
+          - { a: 280, b: 419 }
+          - { a: 420, b: 559 }
+          - { a: 560, b: 699 }
+          - { a: 700, b: 839 }
+          - { a: 840, b: 979 }
+          - { a: 980, b: 1119 }
+          - { a: 1120, b: 1259 }
+          - { a: 1260, b: 1399 }
+          - { a: 1400, b: 1424 }
+          - { a: 1425, b: 1449 }
+          - { a: 1450, b: 1474 }
+          - { a: 1475, b: 1499 }
+          - { a: 1500, b: 1524 }
+          - { a: 1525, b: 1549 }
+          - { a: 1550, b: 1574 }
+          - { a: 1575, b: 1599 }
+          - { a: 1600, b: 1624 }
+          - { a: 1625, b: 1649 }
+          - { a: 1650, b: 1674 }
+          - { a: 1675, b: 1699 }
+          - { a: 1700, b: 1724 }
+          - { a: 1725, b: 1749 }
+          - { a: 1750, b: 1774 }
+          - { a: 1775, b: 1799 }
+          - { a: 1800, b: 1824 }
+          - { a: 1825, b: 1849 }
+          - { a: 1850, b: 1874 }
+          - { a: 1875, b: 1899 }
+          - { a: 1900, b: 1924 }
+          - { a: 1925, b: 1949 }
+          - { a: 1950, b: 1974 }
+          - { a: 1975, b: 1999 }
+          - { a: 2000, b: 2024 }
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 24
+          node-version: 20
+          cache: npm
+      - name: Cache Remotion browser
+        uses: actions/cache@v4
+        with:
+          path: node_modules/.remotion
+          key: remotion-browser-${{ hashFiles('package-lock.json') }}
       - run: npm ci --no-audit --no-fund || npm install --no-audit --no-fund
       - run: npx remotion browser ensure
-      - run: node scripts/render_ci.mjs frames ${{ matrix.chunk.a }} ${{ matrix.chunk.b }}
+      - run: node scripts/render_ci.mjs out/chunk ${{ matrix.a }} ${{ matrix.b }}
+      - name: Assemble chunk
+        run: |
+          python3 - <<'PY'
+          import glob, subprocess, os
+          files = sorted(glob.glob('out/chunk/element-*.jpeg'))
+          assert files, 'no frames rendered'
+          with open('out/concat.txt', 'w') as f:
+              for p in files: f.write(f"file '{os.path.abspath(p)}'\n")
+          subprocess.run(['ffmpeg', '-y', '-f', 'concat', '-safe', '0', '-r', '30', '-i', 'out/concat.txt', '-c:v', 'libx264', '-crf', '18', '-pix_fmt', 'yuv420p', 'out/chunk.mp4'], check=True)
+          print('chunk frames:', len(files))
+          PY
       - uses: actions/upload-artifact@v4
         with:
-          name: frames-${{ matrix.chunk.a }}
-          path: frames/*.jpeg
-          retention-days: 1
+          name: frames-${{ matrix.a }}-${{ matrix.b }}
+          path: out/chunk.mp4
   assemble:
     needs: render
+    if: ${{ !cancelled() }}
     runs-on: ubuntu-latest
-    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
-      - uses: actions/setup-python@v5
-        with:
-          python-version: "3.12"
-      - run: pip install numpy scipy
       - uses: actions/download-artifact@v4
         with:
-          path: frames_in
           pattern: frames-*
+          path: chunks
           merge-multiple: true
-      - name: Generate Indonesian voice and soundtrack
+      - name: Assemble full video
         run: |
-          cd bridge-short
-          python3 make_voice_id.py
-          cd audio
-          python3 mix.py
-      - name: Assemble video
-        run: python3 assemble.py
-      - name: Publish release with the video
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: gh release create "render-${{ github.run_number }}" bridge-short-bahasa.mp4 --title "Bridge Short (Bahasa Indonesia) — run ${{ github.run_number }}" --notes "Full 67.5s portrait short rendered with GitHub Actions (Remotion + three.js, cartoon-3d-short skill)."
+          pip install --quiet numpy scipy
+          python3 bridge-short/make_voice_id.py
+          python3 -c "import sys; sys.path.insert(0, 'bridge-short/audio'); import mix; mix.build()"
+          python3 assemble.py
+      - name: Publish release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: render-${{ github.run_number }}
+          files: out/bridge-short-bahasa.mp4
