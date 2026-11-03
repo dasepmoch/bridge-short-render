@@ -3,6 +3,8 @@ on:
   push:
     branches: [main]
   workflow_dispatch:
+permissions:
+  contents: write
 jobs:
   render:
     runs-on: ubuntu-latest
@@ -82,6 +84,10 @@ jobs:
           python3 bridge-short/make_voice_id.py
           python3 bridge-short/audio/mix.py
           python3 assemble.py
+      - uses: actions/upload-artifact@v4
+        with:
+          name: final-video
+          path: out/bridge-short-bahasa.mp4
       - name: Publish release
         uses: softprops/action-gh-release@v2
         with:
