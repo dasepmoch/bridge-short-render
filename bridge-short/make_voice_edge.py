@@ -52,7 +52,7 @@ def srt_ts(t):
     if ms == 1000: s += 1; ms = 0
     return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
 
-def wrap(text, width=40):
+def wrap(text, width=30):
     words = text.split()
     lines = []
     cur = ""

@@ -19,7 +19,7 @@ for i in range(TOTAL):
 subprocess.run(["ffmpeg", "-y", "-v", "error", "-framerate", "30", "-i", os.path.join(SEQ, "f%04d.jpeg"),
   "-i", "bridge-short/audio/mix.wav", "-c:v", "libx264", "-preset", "medium", "-crf", "18",
   "-pix_fmt", "yuv420p", "-c:a", "aac", "-b:a", "160k", "-movflags", "+faststart", "out/whatif-raw.mp4"], check=True)
-style = "FontSize=15,PrimaryColour=&HFFFFFF&,OutlineColour=&H99000000&,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=30"
+style = "FontSize=11,PrimaryColour=&HFFFFFF&,OutlineColour=&H99000000&,BorderStyle=1,Outline=2,Shadow=0,Alignment=2,MarginV=40"
 subprocess.run(["ffmpeg", "-y", "-v", "error", "-i", "out/whatif-raw.mp4",
   "-vf", f"subtitles=bridge-short/subs_whatif.srt:force_style='{style}'",
   "-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p",
